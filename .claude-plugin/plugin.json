@@ -1,0 +1,16 @@
+{
+  "name": "threatmodel",
+  "description": "Automated threat modeling for Claude Code. Runs security assessments via subagents when you approve implementation plans.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Jose M. Lopez",
+    "url": "https://github.com/josemlopez"
+  },
+  "homepage": "https://github.com/josemlopez/claude-threatmodel",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/josemlopez/claude-threatmodel.git"
+  },
+  "license": "MIT",
+  "keywords": ["security", "threat-modeling", "STRIDE", "OWASP", "compliance"]
+}

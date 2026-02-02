@@ -1,5 +1,5 @@
 ---
-name: tm-quick
+name: quick
 description: Fast threat assessment (~30s). Returns JSON with risk level, top threats, critical gaps. For hooks and CI/CD.
 allowed-tools: Read, Glob, Grep
 ---
@@ -9,7 +9,7 @@ allowed-tools: Read, Glob, Grep
 ## Usage
 
 ```
-/tm-quick [--focus <files>] [--format json|text]
+/threatmodel:quick [--focus <files>] [--format json|text]
 ```
 
 ## Output (JSON)
@@ -50,3 +50,15 @@ allowed-tools: Read, Glob, Grep
 | 3+ high               | high     |
 | 1-2 high or 3+ medium | medium   |
 | Otherwise             | low      |
+
+## Escalation to full
+
+After completing the assessment, if risk_level is **critical** or **high**:
+
+- Recommend running `/threatmodel:full` for complete STRIDE analysis
+- Explain: "Critical/high risks detected. Recommend running /threatmodel:full for complete threat model, compliance mapping, and remediation guidance."
+
+If risk_level is **medium** or **low**:
+
+- Assessment is sufficient, no escalation needed
+- Share findings summary with the main agent

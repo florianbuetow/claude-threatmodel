@@ -1,169 +1,214 @@
 # claude-threatmodel
 
-<p align="center">
-  <img src="resources/01.png" alt="Claude Code: Integrated Automated Threat Modeling" width="700">
-</p>
+**Automated threat modeling for Claude Code**
 
-<p align="center">
-  <code>3 skills • 182 lines • ~2K tokens • Minimal context window impact</code>
-</p>
+```
+3 skills • 182 lines • ~2K tokens • Minimal context window impact
+```
 
 ---
 
-## The Problem
+## What This Does
 
-<p align="center">
-  <img src="resources/02.png" alt="The Latency Loop" width="700">
-</p>
+This plugin adds automatic security assessment to Claude Code. When you approve an implementation plan, it runs a threat analysis **before** code gets written—not weeks later when fixes are expensive.
 
-Security review arrives weeks after code is shipped. By then, fixing issues is expensive.
-
----
-
-## The Solution
-
-<p align="center">
-  <img src="resources/03.png" alt="Moving Analysis to the Moment of Intent" width="700">
-</p>
-
-The plugin intercepts `EnterPlanMode`, injecting security context **before** a single line of code is generated.
-
----
-
-## Zero Context Switching
-
-<p align="center">
-  <img src="resources/04.png" alt="Zero Context Switching" width="700">
-</p>
-
-No commands to remember. The security layer activates automatically based on the intent of your prompt.
+**The key insight:** Security review should happen at the moment of intent, not after deployment.
 
 ---
 
 ## How It Works
 
-### Step 1: The Heuristic Scan
+### The Trigger
 
-<p align="center">
-  <img src="resources/05.png" alt="Step 1: The Heuristic Scan" width="700">
-</p>
+When you're in Claude Code and approve a plan (`ExitPlanMode`), a hook fires automatically. No commands to remember—security assessment just happens.
 
-While Claude prepares to plan, `/tm-quick` executes a fast security scan (~30 seconds).
+### The Subagent Architecture
 
-### Step 2: The Assessment
+Here's what makes this different: **threat analysis runs in a subagent**, not in your main conversation.
 
-<p align="center">
-  <img src="resources/06.png" alt="Step 2: The Assessment" width="700">
-</p>
+Why does this matter?
 
-You receive pure, actionable information displayed inline. No files created yet.
+| Approach                   | Context Cost    | Analysis Depth |
+| -------------------------- | --------------- | -------------- |
+| Direct injection           | ~2K+ tokens     | Limited        |
+| **Subagent (this plugin)** | **~200 tokens** | **Unlimited**  |
 
-### Step 3: The Decision Matrix
+Traditional security tools inject their entire analysis into your conversation, eating up precious context. This plugin spawns a separate agent that:
 
-<p align="center">
-  <img src="resources/07.png" alt="Step 3: The Decision Matrix" width="700">
-</p>
+1. Runs `/threatmodel:quick` in its own context
+2. Scans for vulnerabilities
+3. Returns only a brief summary to your main conversation
+4. Your context window stays clean for actual work
 
-You now know what could go wrong. You decide the direction.
+### The Flow
 
-### Step 4: Context-Aware Execution
-
-<p align="center">
-  <img src="resources/08.png" alt="Step 4: Context-Aware Execution" width="700">
-</p>
-
-If you proceed, Claude writes code **defensively** based on the threat model.
-
-### Step 5: Post-Plan Audit (Optional)
-
-<p align="center">
-  <img src="resources/09.png" alt="Step 5: Post-Plan Audit & Drift Detection" width="700">
-</p>
-
-If enabled, a full threat model runs after plan approval, creating compliance snapshots.
-
----
-
-## Configuration
-
-<p align="center">
-  <img src="resources/10.png" alt="Configuring Friction" width="700">
-</p>
-
-```yaml
-# .threatmodel/config.yaml
-hooks:
-  pre_plan:
-    enabled: true
-    block_on: "critical" # strict | balanced (default) | informational
-  post_plan:
-    enabled: true
-    compliance: ["owasp", "soc2"]
+```
+You: "Implement user authentication"
+     ↓
+Claude: [Creates plan]
+     ↓
+You: [Approve plan] → ExitPlanMode
+     ↓
+Hook fires → Subagent spawns
+     ↓
+Subagent: Runs /threatmodel:quick
+          • Scans for hardcoded credentials
+          • Checks for injection vulnerabilities
+          • Looks for XSS patterns
+          • Returns: "Found 2 high risks..."
+     ↓
+Claude: Continues with security-aware implementation
 ```
 
----
+### Risk-Based Escalation
 
-## Technical Architecture
+The quick assessment calculates a risk level:
 
-<p align="center">
-  <img src="resources/11.png" alt="Technical Architecture" width="700">
-</p>
+| Risk Level        | What Happens                                                |
+| ----------------- | ----------------------------------------------------------- |
+| **Critical/High** | Recommends `/threatmodel:full` for complete STRIDE analysis |
+| **Medium/Low**    | Shares findings, proceeds with implementation               |
 
-The hooks act as automated triggers for the underlying skill logic.
-
----
-
-## Installation
-
-<p align="center">
-  <img src="resources/12.png" alt="Installation & Setup" width="700">
-</p>
-
-```bash
-# 1. Get the plugin
-git clone https://github.com/josemlopez/claude-threatmodel.git
-
-# 2. Install skill
-cp -r claude-threatmodel/skills/tm-quick ~/.claude/skills/
-
-# 3. Install hooks
-./claude-threatmodel/hooks/install-hooks.sh
-
-# 4. (Optional) Configure
-# Create .threatmodel/config.yaml to adjust blocking rules
-```
-
----
-
-## Why It Matters
-
-<p align="center">
-  <img src="resources/13.png" alt="Why It Matters" width="700">
-</p>
-
-| Benefit           | Description                                            |
-| ----------------- | ------------------------------------------------------ |
-| **Frictionless**  | No extra commands. Security happens while you work.    |
-| **Context-Aware** | Claude plans with security knowledge, reducing rework. |
-| **Auditable**     | Automatic compliance mapping and drift detection.      |
+You decide whether to run the full analysis. The plugin doesn't block you—it informs you.
 
 ---
 
 ## The 3 Skills
 
-| Skill        | Purpose                      | When                    |
-| ------------ | ---------------------------- | ----------------------- |
-| `/tm-quick`  | Fast risk assessment (~30s)  | **Automatic** via hooks |
-| `/tm-full`   | Complete STRIDE + compliance | On-demand               |
-| `/tm-status` | Current posture overview     | Quick check             |
+| Skill                 | Purpose                      | When It Runs                      |
+| --------------------- | ---------------------------- | --------------------------------- |
+| `/threatmodel:quick`  | Fast risk scan (~30s)        | **Automatic** after plan approval |
+| `/threatmodel:full`   | Complete STRIDE + compliance | On-demand or when escalated       |
+| `/threatmodel:status` | Current security posture     | Manual check                      |
 
-### Size & Token Impact
+### What Quick Scans For
+
+- Hardcoded credentials (`password.*=.*["']`)
+- Code injection (`eval(`, `exec(`)
+- SQL injection (`query.*+.*req.`)
+- XSS vulnerabilities (`innerHTML.*=`)
+
+### What Full Analyzes
+
+- **S**poofing - Can attackers impersonate?
+- **T**ampering - Can data be modified?
+- **R**epudiation - Can actions be denied?
+- **I**nformation Disclosure - Can data leak?
+- **D**enial of Service - Can service be disrupted?
+- **E**levation of Privilege - Can permissions be gained?
+
+Plus: OWASP Top 10 mapping, SOC2/PCI-DSS compliance checks, baseline snapshots for drift detection.
+
+---
+
+## Installation
+
+### Option 1: Plugin Marketplace (Recommended)
+
+```
+/plugin marketplace add josemlopez/claude-threatmodel
+/plugin install threatmodel@josemlopez
+```
+
+Done. The plugin includes skills and hooks—no configuration needed.
+
+### Option 2: Ask Claude
+
+Just say:
+
+```
+Install the threat modeling plugin from https://github.com/josemlopez/claude-threatmodel
+```
+
+### Verify It Works
+
+```
+/threatmodel:status
+```
+
+Or: approve any implementation plan and watch the security assessment run.
+
+<details>
+<summary><strong>Development: Test Locally</strong></summary>
+
+```bash
+git clone https://github.com/josemlopez/claude-threatmodel.git
+claude --plugin-dir ./claude-threatmodel
+```
+
+Note: `--plugin-dir` loads the plugin for that session only.
+
+</details>
+
+<details>
+<summary><strong>Advanced: Manual Installation</strong></summary>
+
+For shorter skill names (`/tm-quick` instead of `/threatmodel:quick`):
+
+```bash
+cp -r skills/quick ~/.claude/skills/tm-quick
+cp -r skills/full ~/.claude/skills/tm-full
+cp -r skills/status ~/.claude/skills/tm-status
+```
+
+Then copy hooks from `hooks/hooks.json` to `~/.claude/settings.json`, updating skill references from `/threatmodel:quick` to `/tm-quick`.
+
+</details>
+
+---
+
+## Technical Details
+
+### The Hook
+
+The plugin registers a `PostToolUse` hook that matches `ExitPlanMode`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\": {\"additionalContext\": \"SECURITY CHECKPOINT: Launch a subagent to run /threatmodel:quick...\"}}'"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+When triggered, this injects context telling Claude to spawn a Task subagent for the security scan. The subagent does the heavy lifting; your conversation gets only the summary.
+
+### Output Structure (Full Analysis)
+
+```
+.threatmodel/
+├── config.yaml
+├── state/
+│   ├── assets.json        # Discovered components
+│   ├── dataflows.json     # Data movement
+│   ├── threats.json       # STRIDE analysis
+│   ├── controls.json      # Security controls found
+│   ├── gaps.json          # Missing controls
+│   └── compliance.json    # Framework mapping
+├── reports/
+│   ├── risk-report.md
+│   └── executive-summary.md
+└── baseline/
+    └── snapshot-{date}.json
+```
+
+### Size & Footprint
 
 | Component | Lines   | Est. Tokens |
 | --------- | ------- | ----------- |
-| tm-quick  | 52      | ~600        |
-| tm-full   | 77      | ~900        |
-| tm-status | 53      | ~600        |
+| quick     | 52      | ~600        |
+| full      | 77      | ~900        |
+| status    | 53      | ~600        |
 | **Total** | **182** | **~2,100**  |
 
 Designed to minimize context window consumption.
@@ -174,19 +219,18 @@ Designed to minimize context window consumption.
 
 ```
 claude-threatmodel/
+├── .claude-plugin/
+│   └── plugin.json        # Plugin manifest
 ├── skills/
-│   ├── tm-quick/          # Fast assessment (hooks)
-│   ├── tm-full/           # Complete workflow
-│   └── tm-status/         # Status overview
+│   ├── quick/             # /threatmodel:quick
+│   ├── full/              # /threatmodel:full
+│   └── status/            # /threatmodel:status
 ├── hooks/
-│   ├── pre-plan-hook.sh   # EnterPlanMode trigger
-│   ├── post-plan-hook.sh  # ExitPlanMode trigger
-│   └── install-hooks.sh
+│   └── hooks.json         # Auto-trigger on ExitPlanMode
 ├── shared/
-│   ├── schemas/
-│   ├── frameworks/
-│   └── templates/
-├── resources/             # Documentation images
+│   ├── schemas/           # JSON schemas
+│   ├── frameworks/        # OWASP, SOC2, PCI-DSS mappings
+│   └── templates/         # Config templates
 └── README.md
 ```
 
@@ -194,35 +238,40 @@ claude-threatmodel/
 
 ## FAQ
 
-**Q: What if I don't want blocking?**
-Set `block_on: none`. You'll still see the assessment.
+**Does this slow down my workflow?**
+No. The quick scan takes ~30 seconds and runs in a subagent. You can continue working.
 
-**Q: Does this slow down my workflow?**
-~30 seconds. It runs while Claude prepares to plan anyway.
+**Does this consume my context window?**
+Minimal impact (~200 tokens). The analysis runs in a separate subagent context.
 
-**Q: What if there's no existing threat model?**
-Works without one. Uses heuristic analysis (pattern matching for vulnerabilities).
+**When exactly does it trigger?**
+After you approve a plan (`ExitPlanMode`). Not during planning—only after you say "proceed."
 
-**Q: Difference between tm-quick and tm-full?**
+**What if I don't have an existing threat model?**
+Works without one. Uses heuristic pattern matching for common vulnerabilities.
 
-|        | `/tm-quick`                | `/tm-full`                   |
-| ------ | -------------------------- | ---------------------------- |
-| Time   | ~30 seconds                | ~5 minutes                   |
-| Output | JSON to stdout             | Files in `.threatmodel/`     |
-| Scope  | Top threats, critical gaps | Complete STRIDE + compliance |
+**Quick vs Full—when to use which?**
+
+|              | `/threatmodel:quick`    | `/threatmodel:full`          |
+| ------------ | ----------------------- | ---------------------------- |
+| Time         | ~30 seconds             | ~5 minutes                   |
+| Trigger      | Automatic               | Manual/escalated             |
+| Output       | Summary to conversation | Files in `.threatmodel/`     |
+| Scope        | Top threats only        | Complete STRIDE + compliance |
+| Context cost | ~200 tokens             | Report saved to disk         |
 
 ---
 
-<p align="center">
-  <img src="resources/14.png" alt="Start Coding Securely" width="700">
-</p>
+## Why This Matters
 
-<p align="center">
-  <strong>Security doesn't have to be a roadblock. Make it part of the plan.</strong>
-</p>
+| Benefit           | Description                                                 |
+| ----------------- | ----------------------------------------------------------- |
+| **Frictionless**  | No commands to remember. Security happens automatically.    |
+| **Context-Aware** | Claude implements with security knowledge, reducing rework. |
+| **Auditable**     | Compliance mapping and drift detection built in.            |
 
-<p align="center">
-  <a href="https://github.com/josemlopez/claude-threatmodel">GitHub</a> •
-  <a href="https://github.com/josemlopez/claude-threatmodel/issues">Issues</a> •
-  MIT License
-</p>
+Security doesn't have to be a roadblock. Make it part of the plan.
+
+---
+
+[GitHub](https://github.com/josemlopez/claude-threatmodel) • [Issues](https://github.com/josemlopez/claude-threatmodel/issues) • MIT License

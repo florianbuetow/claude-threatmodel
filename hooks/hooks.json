@@ -1,0 +1,16 @@
+{
+  "description": "Automated threat modeling hooks - triggers security assessment after plan approval",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"SECURITY CHECKPOINT: Plan approved. Before implementing, launch a subagent to run /threatmodel:quick for a security assessment. If the assessment finds critical or high risks, recommend running /threatmodel:full for complete analysis. Share the key findings back.\"}}'"
+          }
+        ]
+      }
+    ]
+  }
+}

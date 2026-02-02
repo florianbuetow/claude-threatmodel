@@ -1,5 +1,5 @@
 ---
-name: tm-status
+name: status
 description: Show threat model status - asset counts, threat distribution, control verification, compliance coverage.
 allowed-tools: Read, Glob
 ---
@@ -9,7 +9,7 @@ allowed-tools: Read, Glob
 ## Usage
 
 ```
-/tm-status [--format text|json]
+/threatmodel:status [--format text|json]
 ```
 
 ## Output

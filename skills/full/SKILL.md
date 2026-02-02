@@ -1,5 +1,5 @@
 ---
-name: tm-full
+name: full
 description: Complete threat modeling workflow. Discovers assets, analyzes threats (STRIDE), verifies controls, maps compliance, generates reports.
 allowed-tools: Read, Write, Glob, Grep, Bash(mkdir:*), Bash(ls:*)
 ---
@@ -9,7 +9,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash(mkdir:*), Bash(ls:*)
 ## Usage
 
 ```
-/tm-full [--docs <path>] [--compliance owasp,soc2,pci-dss]
+/threatmodel:full [--docs <path>] [--compliance owasp,soc2,pci-dss]
 ```
 
 ## What It Does
