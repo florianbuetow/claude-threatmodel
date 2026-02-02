@@ -1,5 +1,9 @@
 # claude-threatmodel
 
+<p align="center">
+  <img src="resources/image.png" alt="Claude Code Threat Model Plugin" width="700">
+</p>
+
 **Automated threat modeling for Claude Code**
 
 ```
